@@ -7,6 +7,9 @@ import open3d as o3d
 # one of these will probably be useful-
 # static create_from_rgbd_image(image, intrinsic, extrinsic=(with default value), project_valid_depth_only=True)
 #static create_from_depth_image(depth, intrinsic, extrinsic=(with default value), depth_scale=1000.0, depth_trunc=1000.0, stride=1, project_valid_depth_only=True)
+#likely want to do some preprocessing as well 
+
+
 
 # second part of project, find the transforms between the depth frames (maybe use icp) and if we are unable to mask the point clouds before we find the transforms, apply the masks to the depth images now and create smaller point clouds to apply the same transforms to
 #section output- a single point cloud representing the object.
@@ -65,6 +68,14 @@ input_mesh = o3d.io.read_triangle_mesh("path to mesh, idk if it should be string
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=500, init_factor=5) #may want to mess with these inputs as well
 #now lets do point cloud regestration to find the transform, apply to meshes and compare 
 
+#transform just like in part 2
+#how should we compare?
+
+#distance between each point and the surface of the mesh? -  then make a color map? probably best idea
+#lets try using point cloud distance
+
+dists = merged_point_clouds.compute_point_cloud_distance(input_pcd) #doistance between the point cloud and closest point on the input
+## now we just need to find a way to visualize these point cloud distances.
 
 
 
