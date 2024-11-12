@@ -87,3 +87,72 @@ dists = merged_point_clouds.compute_point_cloud_distance(input_pcd) #doistance b
 
 
 #fourth part of the project, visualize the two meshes, diffrences between them, make good graphics to show off what we did before
+
+#%% Colored Difference 3D Point Cloud
+
+# Set a threshold for min difference
+threshold = 0.01
+difference_mask = dists > threshold
+
+# Extract points and distances that differ significantly
+difference_points = merged_point_clouds[difference_mask]
+difference_colors = np.zeros((difference_points.shape[0], 3))  # initialize colors array
+
+# Map distances to colors for visualization (e.g., red for large differences)
+max_distance = dists.max()
+difference_colors[:, 0] = distances[difference_mask] / max_distance  # Red intensity based on difference
+
+# Create a new point cloud with highlighted differences
+diff_pcd = o3d.geometry.PointCloud()
+diff_pcd.points = o3d.utility.Vector3dVector(difference_points)
+diff_pcd.colors = o3d.utility.Vector3dVector(difference_colors)
+
+# Visualize the difference point cloud
+o3d.visualization.draw_geometries([diff_pcd])
+
+#%% Layer View
+
+# Convert point clouds to numpy arrays
+points1 = np.asarray(merged_point_clouds.points)
+points2 = np.asarray(input_pcd.points)
+
+# Calculate half of the maximum z height across both point clouds
+max_z = max(points1[:, 2].max(), points2[:, 2].max())
+target_z = max_z / 2
+
+# Set a tolerance range for slicing 
+tolerance = 0.01
+section_points1 = points1[(points1[:, 2] > target_z - tolerance) & (points1[:, 2] < target_z + tolerance)]
+section_points2 = points2[(points2[:, 2] > target_z - tolerance) & (points2[:, 2] < target_z + tolerance)]
+
+# Plot the 2D section view for the specified z-height
+plt.figure(figsize=(10, 8))
+
+# Plot points from merged_point_clouds in red
+plt.scatter(section_points1[:, 0], section_points1[:, 1], color='red', label='Merged Point Cloud', s=5)
+
+# Plot points from input_pcd in blue
+plt.scatter(section_points2[:, 0], section_points2[:, 1], color='blue', label='Input Point Cloud', s=5)
+
+# Add labels and legend
+plt.xlabel('X Coordinate')
+plt.ylabel('Y Coordinate')
+plt.title(f"2D Section View at Z = {target_z:.2f}")
+plt.legend()
+plt.grid(True)
+
+# Show the plot
+plt.show()
+
+#%% Comparison Results
+
+# Average Deviation
+average = np.mean(dists)
+print("Average: ",average)
+
+# Max Deviation
+print("Maximum Deviation: ",max_distance)
+
+
+
+
