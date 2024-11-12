@@ -1,13 +1,103 @@
 import cv2
 import numpy as np
-import pyrealsense2
+import pyrealsense2 as rs
 import open3d as o3d
-#first part of project, start video stream to realsense camera, get depth frames and the alighned rgb frames, turn those depth frames into a point cloud, mask the point cloud using the rgb info probably (or mask directly on point cloud) so that we are left with only the object
-#section output- open3d point cloud objects, maybe masks (np array) of the rgb or depth frames as well
-# one of these will probably be useful-
-# static create_from_rgbd_image(image, intrinsic, extrinsic=(with default value), project_valid_depth_only=True)
-#static create_from_depth_image(depth, intrinsic, extrinsic=(with default value), depth_scale=1000.0, depth_trunc=1000.0, stride=1, project_valid_depth_only=True)
-#likely want to do some preprocessing as well 
+'''
+First part of the project
+1. Start video stream to realsense camera
+2. Get depth frames and the aligned rgb frames
+3. Turn those depth frames into a point cloud
+4. Mask the point cloud using the rgb info probably (or mask directly on point cloud) 
+so that we are left with only the object section output
+    - open3d point cloud objects
+    - maybe masks (np array) of the rgb or depth frames as well
+
+One of these will probably be useful-
+static create_from_rgbd_image(image, intrinsic, extrinsic=(with default value), project_valid_depth_only=True)
+static create_from_depth_image(depth, intrinsic, extrinsic=(with default value), depth_scale=1000.0, depth_trunc=1000.0, stride=1, project_valid_depth_only=True)
+
+Likely want to do some preprocessing as well 
+'''
+
+# Reference:
+# https://github.com/IntelRealSense/librealsense/blob/master/wrappers/python/examples/python-tutorial-1-depth.py
+# https://github.com/IntelRealSense/librealsense/blob/master/wrappers/python/examples/align-depth2color.py
+# https://snyk.io/advisor/python/pyrealsense2/functions/pyrealsense2.pipeline
+# https://github.com/AoLyu/Some-implementions-with-RGBD-camera-RealSense-D435/blob/62364d118cef39bf01f6b7bdc7a4ef3edaacf57a/Basic/captureRGBDpt.py#L102
+# https://medium.com/@christhaliyath/lidar-and-pointcloud-simple-tutorial-for-op-3c5d7cd35ad4
+
+try:
+    # Create a pipline to handle the realsense camera
+    pipeline = rs.pipeline()
+    
+    # Configure video streams
+    config = rs.config()
+    
+    # Capture both depth and color data 
+    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+    
+    # Start streaming and obtain camera intrinsics
+    profile = pipeline.start(config)
+    depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
+    intrinsics = profile.get_stream(rs.stream.color).as_video_stream_profile().get_intrinsics()
+    print((intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy))
+    pinhole_intrinsics = o3d.camera.PinholeCameraIntrinsic(intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy)
+    
+    # Capture frames
+    for _ in range(30): # need to adjust the frame counts based on our use case
+        frames = pipeline.wait_for_frames()
+        depth_frame = frames.get_depth_frame()
+        color_frame = frames.get_color_frame()
+        
+        if (depth_frame == None) or (color_frame == None):
+            print("Depth frames or color frames are not captured.\n")
+            continue
+        
+        # Obtain Open3D images for depth, color, and RGBD
+        depth_image = o3d.geometry.Image(np.asanyarray(depth_frame.get_data()))
+        color_image = o3d.geometry.Image(np.asanyarray(color_frame.get_data()))
+        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_image, depth_image, convert_rgb_to_intensity=False)
+        
+        # Generate point clouds
+        point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, pinhole_intrinsics)
+        
+        # To standardize coordinate system
+        matrix = [
+            [1, 0, 0, 0],  # X - Remains the same
+            [0, -1, 0, 0], # Y - Inverted
+            [0, 0, -1, 0], # Z - Inverted
+            [0, 0, 0, 1]   # No translation
+        ]
+        point_cloud.transform(matrix)
+        
+        # Need to be modified based on depth (in meters)
+        threshold = 0.1
+        point_cloud_points = np.asarray(point_cloud.points)
+        point_cloud_rgb = np.asarray(point_cloud.colors)
+        
+        # Create a mask for point cloud (z-axis)
+        mask = point_cloud_points[:, 2] < threshold
+        
+        # Filter out points and RGB
+        filtered_points = point_cloud_points[mask]
+        filtered_rgb = point_cloud_rgb[mask]
+        
+        # Visualize masked point cloud 
+        point_cloud_masked = o3d.geometry.PointCloud()
+        point_cloud_masked.points = o3d.utility.Vector3dVector(filtered_points)
+        point_cloud_masked.colors = o3d.utility.Vector3dVector(filtered_rgb)
+        
+        o3d.visualization.draw_geometries([point_cloud_masked])
+        
+        # Save the masked point cloud
+        o3d.io.write_point_cloud("masked_point_cloud.ply", point_cloud_masked)
+        
+# For debugging purposes
+except Exception as e:
+    print(e)
+    pass
+
 
 
 
