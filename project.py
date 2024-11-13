@@ -109,6 +109,50 @@ except Exception as e:
 #  we will likely need to appy ransac ourselves- this is more than enough work
 
 
+def prepare_dataset(source, target, voxel_size):
+    source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
+    target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
+    return source, target, source_down, target_down, source_fpfh, target_fpfh
+
+# Downsamples pointcloud source and target 
+def preprocess_point_cloud(pcd, voxel_size):
+    pcd_down = pcd.voxel_down_sample(source, target, voxel_size)
+    radius_normal = voxel_size * 2
+    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+    radius_feature = voxel_size * 5
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down,o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
+    return pcd_down, pcd_fpfh
+
+# Runs RANSAC on downsampled pointclouds
+def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
+    distance_threshold = voxel_size * 1.5
+    result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
+        source_down, target_down, source_fpfh, target_fpfh, True, distance_threshold,
+         o3d.pipelines.registration.TransformationEstimationPointToPoint(False), 3, 
+        [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+         o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)],
+         o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
+    return result
+
+
+for _ in depthFrames: # loop through frames in rotation order, or use an evaluation metric to compare two frames and make sure they have enough overlap
+    
+    voxel_size = 0.01  # means 1cm for this dataset
+    threshold = 0.02
+    source = o3d.geometry.PointCloud() # Loop through each frame
+    target = o3d.geometry.PointCloud() # set to base depth frame
+    
+    # evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
+    # print(evaluation)
+    
+    # Take data set and downsample point cloud to prepare for RANSAC
+    source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
+    # Obtain rough tansformation matrix from RANSAC
+    result_ransac = execute_global_registration(source_down, target_down,source_fpfh, target_fpfh, voxel_size)
+    # Obrain refined transformation matrix from ICP, using RANSAC matrix as initial guess
+    reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
+
+
 
 #third part of project, do post processing on the point cloud as needed, turn it into a mesh probably, compare it to a mesh we read in? alighn it with that read in mesh?
 #section output- two meshes probably? transforms?
