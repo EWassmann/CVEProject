@@ -149,7 +149,7 @@ for _ in depthFrames: # loop through frames in rotation order, or use an evaluat
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
     # Obtain rough tansformation matrix from RANSAC
     result_ransac = execute_global_registration(source_down, target_down,source_fpfh, target_fpfh, voxel_size)
-    # Obrain refined transformation matrix from ICP, using RANSAC matrix as initial guess
+    # Obtain refined transformation matrix from ICP, using RANSAC matrix as initial guess
     reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
 
 
