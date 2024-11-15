@@ -126,8 +126,8 @@ pcd_rabbit_transformed = mesh_rabbit.sample_points_poisson_disk(750)
 #o3d.visualization.draw_geometries([pcd_rabbit_transformed])
 print("1.1")
 t_M = np.asarray([[1,0,0,0.1],
-                [0,np.cos(20*np.pi/180),np.sin(20*np.pi/180),0],
-                [0,-np.sin(20*np.pi/180),np.cos(20*np.pi/180),0],
+                [0,np.cos(45*np.pi/180),np.sin(45*np.pi/180),0],
+                [0,-np.sin(45*np.pi/180),np.cos(45*np.pi/180),.1],
                 [0,0,0,1]])
 T = t_M.astype(np.float64)
 
