@@ -210,10 +210,11 @@ merged_point_clouds.orient_normals_consistent_tangent_plane(100) #that 100 is th
 with o3d.utility.VerbosityContextManager(
         o3d.utility.VerbosityLevel.Debug) as cm:
     Poisson_mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-        merged_point_clouds, depth=9) #the larger the depth value is the more detail will be in the mesh
+        merged_point_clouds, depth=6) #the larger the depth value is the more detail will be in the mesh
 ##density value can be visualized to show how many supporting points there are for each vertex
 print(Poisson_mesh)
 Poisson_mesh.compute_vertex_normals()
+Poisson_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
 o3d.visualization.draw_geometries([Poisson_mesh])
 # o3d.visualization.draw_geometries([Poisson_mesh],
 #                                   zoom=0.664,
@@ -258,7 +259,7 @@ print("5")
 dists = np.asarray(dists)
 threshold = 0.01
 # difference_mask = dists > threshold
-ind = np.where(dists > 0.01)[0]
+ind = np.where(dists > 0.001)[0]
 
 # Extract points and distances that differ significantly
 difference_points = merged_point_clouds.select_by_index(ind)
