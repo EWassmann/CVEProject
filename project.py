@@ -125,7 +125,7 @@ pcd_rabbit = mesh_rabbit.sample_points_poisson_disk(750)
 pcd_rabbit_transformed = mesh_rabbit.sample_points_poisson_disk(750)
 #o3d.visualization.draw_geometries([pcd_rabbit_transformed])
 print("1.1")
-t_M = np.asarray([[1,0,0,0],
+t_M = np.asarray([[1,0,0,0.1],
                 [0,np.cos(20*np.pi/180),np.sin(20*np.pi/180),0],
                 [0,-np.sin(20*np.pi/180),np.cos(20*np.pi/180),0],
                 [0,0,0,1]])
@@ -138,7 +138,7 @@ T = T.astype(np.float64)
 print(T)
 print("1.2")
 pcd_rabbit_transformed.transform(T)
-
+o3d.visualization.draw_geometries([pcd_rabbit,pcd_rabbit_transformed])
 print("1.25")
 # Downsamples pointcloud source and target 
 def preprocess_point_cloud(pcd, voxel_size):
@@ -189,7 +189,8 @@ print("3")
 
 #assuming from previous step we have: transfomred merged point clouds
 
-merged_point_clouds = pcd_rabbit_transformed.transform(reg_p2p.transformation)
+merged_point_clouds = pcd_rabbit_transformed.transform(np.linalg.inv(reg_p2p.transformation))
+o3d.visualization.draw_geometries([pcd_rabbit,merged_point_clouds])
 # ##Alpha shaped
 # alpha = 0.03 # tradeoff paramater- mess with changing this around
 # print(f"alpha={alpha:.3f}")
@@ -212,6 +213,7 @@ with o3d.utility.VerbosityContextManager(
         merged_point_clouds, depth=9) #the larger the depth value is the more detail will be in the mesh
 ##density value can be visualized to show how many supporting points there are for each vertex
 print(Poisson_mesh)
+Poisson_mesh.compute_vertex_normals()
 o3d.visualization.draw_geometries([Poisson_mesh])
 # o3d.visualization.draw_geometries([Poisson_mesh],
 #                                   zoom=0.664,
