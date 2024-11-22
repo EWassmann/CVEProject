@@ -29,82 +29,84 @@ Likely want to do some preprocessing as well
 # https://github.com/AoLyu/Some-implementions-with-RGBD-camera-RealSense-D435/blob/62364d118cef39bf01f6b7bdc7a4ef3edaacf57a/Basic/captureRGBDpt.py#L102
 # https://medium.com/@christhaliyath/lidar-and-pointcloud-simple-tutorial-for-op-3c5d7cd35ad4
 
-try:
-    # Create a pipline to handle the realsense camera
-    pipeline = rs.pipeline()
-    
-    # Configure video streams
-    config = rs.config()
-    
-    # Capture both depth and color data 
-    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-    
-    # Start streaming and obtain camera intrinsics
-    profile = pipeline.start(config)
-    depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
-    intrinsics = profile.get_stream(rs.stream.color).as_video_stream_profile().get_intrinsics()
-    print((intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy))
-    pinhole_intrinsics = o3d.camera.PinholeCameraIntrinsic(intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy)
-    fileNames = []
-    # Capture frames
-    for i in range(10): # need to adjust the frame counts based on our use case
-        frames = pipeline.wait_for_frames()
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
-        
-        if (depth_frame == None) or (color_frame == None):
-            print("Depth frames or color frames are not captured.\n")
-            continue
-        
-        # Obtain Open3D images for depth, color, and RGBD
-        depth_image = o3d.geometry.Image(np.asanyarray(depth_frame.get_data()))
-        color_image = o3d.geometry.Image(np.asanyarray(color_frame.get_data()))
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_image, depth_image, convert_rgb_to_intensity=False)
-        
-        # Generate point clouds
-        point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, pinhole_intrinsics)
-        point_cloud.estimate_normals()
-        # To standardize coordinate system
-        matrix = [
-            [1, 0, 0, 0],  # X - Remains the same
-            [0, -1, 0, 0], # Y - Inverted
-            [0, 0, -1, 0], # Z - Inverted
-            [0, 0, 0, 1]   # No translation
-        ]
-        point_cloud.transform(matrix)
-        
-        # Need to be modified based on depth (in meters)
-        threshold = 0.3
-        point_cloud_points = np.asarray(point_cloud.points)
-        point_cloud_rgb = np.asarray(point_cloud.colors)
-        
-        # Create a mask for point cloud (z-axis)
-        mask = point_cloud_points[:, 2] < threshold
-        
-        # Filter out points and RGB
-        filtered_points = point_cloud_points[mask]
-        filtered_rgb = point_cloud_rgb[mask]
-        
-        # Visualize masked point cloud 
-        point_cloud_masked = o3d.geometry.PointCloud()
-        point_cloud_masked.points = o3d.utility.Vector3dVector(filtered_points)
-        point_cloud_masked.colors = o3d.utility.Vector3dVector(filtered_rgb)
-        point_cloud_masked.estimate_normals()
-        #o3d.visualization.draw_geometries([point_cloud_masked])
-        st = "masked_point_cloud"+str(i)+".pcd"
-        fileNames.append(st)
-        # Save the masked point cloud
-        o3d.io.write_point_cloud(st, point_cloud_masked)
-        #time.sleep(0.5)
-        input("press enter")
-        
-# For debugging purposes
-except Exception as e:
-    print(e)
-    pass
 
+# try:
+#     # Create a pipline to handle the realsense camera
+#     pipeline = rs.pipeline()
+    
+#     # Configure video streams
+#     config = rs.config()
+    
+#     # Capture both depth and color data 
+#     config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+#     config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+    
+#     # Start streaming and obtain camera intrinsics
+#     profile = pipeline.start(config)
+#     depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
+#     intrinsics = profile.get_stream(rs.stream.color).as_video_stream_profile().get_intrinsics()
+#     print((intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy))
+#     pinhole_intrinsics = o3d.camera.PinholeCameraIntrinsic(intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy)
+#     fileNames = []
+#     # Capture frames
+#     for i in range(10): # need to adjust the frame counts based on our use case
+#         frames = pipeline.wait_for_frames()
+#         depth_frame = frames.get_depth_frame()
+#         color_frame = frames.get_color_frame()
+        
+#         if (depth_frame == None) or (color_frame == None):
+#             print("Depth frames or color frames are not captured.\n")
+#             continue
+        
+#         # Obtain Open3D images for depth, color, and RGBD
+#         depth_image = o3d.geometry.Image(np.asanyarray(depth_frame.get_data()))
+#         color_image = o3d.geometry.Image(np.asanyarray(color_frame.get_data()))
+#         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_image, depth_image, convert_rgb_to_intensity=False)
+        
+#         # Generate point clouds
+#         point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, pinhole_intrinsics)
+#         point_cloud.estimate_normals()
+#         # To standardize coordinate system
+#         matrix = [
+#             [1, 0, 0, 0],  # X - Remains the same
+#             [0, -1, 0, 0], # Y - Inverted
+#             [0, 0, -1, 0], # Z - Inverted
+#             [0, 0, 0, 1]   # No translation
+#         ]
+#         point_cloud.transform(matrix)
+        
+#         # Need to be modified based on depth (in meters)
+#         threshold = 0.3
+#         point_cloud_points = np.asarray(point_cloud.points)
+#         point_cloud_rgb = np.asarray(point_cloud.colors)
+        
+#         # Create a mask for point cloud (z-axis)
+#         mask = point_cloud_points[:, 2] < threshold
+        
+#         # Filter out points and RGB
+#         filtered_points = point_cloud_points[mask]
+#         filtered_rgb = point_cloud_rgb[mask]
+        
+#         # Visualize masked point cloud 
+#         point_cloud_masked = o3d.geometry.PointCloud()
+#         point_cloud_masked.points = o3d.utility.Vector3dVector(filtered_points)
+#         point_cloud_masked.colors = o3d.utility.Vector3dVector(filtered_rgb)
+#         point_cloud_masked.estimate_normals()
+#         #o3d.visualization.draw_geometries([point_cloud_masked])
+#         st = "masked_point_cloud"+str(i)+".pcd"
+#         fileNames.append(st)
+#         # Save the masked point cloud
+#         o3d.io.write_point_cloud(st, point_cloud_masked)
+#         #time.sleep(0.5)
+#         input("press enter")
+        
+# # For debugging purposes
+# except Exception as e:
+#     print(e)
+#     pass
 
+#fileNames = ["saved_pct/masked_point_cloud0.pcd","saved_pct/masked_point_cloud1.pcd","saved_pct/masked_point_cloud2.pcd","saved_pct/masked_point_cloud3.pcd","saved_pct/masked_point_cloud4.pcd","saved_pct/masked_point_cloud5.pcd","saved_pct/masked_point_cloud6.pcd","saved_pct/masked_point_cloud7.pcd","saved_pct/masked_point_cloud8.pcd","saved_pct/masked_point_cloud9.pcd",]
+fileNames = ["masked_point_cloud0.pcd","masked_point_cloud1.pcd","masked_point_cloud2.pcd","masked_point_cloud3.pcd","masked_point_cloud4.pcd","masked_point_cloud5.pcd","masked_point_cloud6.pcd","masked_point_cloud7.pcd","masked_point_cloud8.pcd","masked_point_cloud9.pcd","masked_point_cloud10.pcd","masked_point_cloud11.pcd","masked_point_cloud12.pcd","masked_point_cloud13.pcd","masked_point_cloud14.pcd"]
 print("1")
 
 # second part of project, find the transforms between the depth frames (maybe use icp) and if we are unable to mask the point clouds before we find the transforms, apply the masks to the depth images now and create smaller point clouds to apply the same transforms to
@@ -168,7 +170,7 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
          o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
     return result
 
-voxel_size = 0.01  # means 1cm for this dataset
+voxel_size = 0.03  # means 1mm for this dataset
 threshold = 0.02
 max_correspondence_distance_coarse = voxel_size * 15
 max_correspondence_distance_fine = voxel_size * 1.5
@@ -195,8 +197,10 @@ def full_registration(fileNames):
     odometry = np.identity(4)
     pose_graph.nodes.append(o3d.pipelines.registration.PoseGraphNode(odometry))
     for source_id in range(len(fileNames)):
+            #o3d.visualization.draw_geometries([o3d.io.read_point_cloud(fileNames[source_id])])
             for target_id in range(source_id + 1,len(fileNames) ):
-                print( o3d.io.read_point_cloud(fileNames[source_id]).has_normals())
+                #o3d.io.read_point_cloud(fileNames[source_id]).orient_normals_consistent_tangent_plane()
+                
                 transformation_icp, information_icp = pairwise_registration(
                     o3d.io.read_point_cloud(fileNames[source_id]),o3d.io.read_point_cloud(fileNames[target_id]))
                 print("Build o3d.pipelines.registration.PoseGraph")
@@ -285,9 +289,9 @@ print("3")
 
 #assuming from previous step we have: transfomred merged point clouds
 
-merged_point_clouds = source
+merged_point_clouds = pcd_combined_down
 
-o3d.visualization.draw_geometries([source])
+# o3d.visualization.draw_geometries([source])
 
 # ##Alpha shaped
 # alpha = 0.03 # tradeoff paramater- mess with changing this around
@@ -329,7 +333,7 @@ o3d.visualization.draw_geometries([reconstructed_mesh])
 
 #read in mesh of intrest,
 # input_mesh = o3d.io.read_triangle_mesh("path to mesh, idk if it should be string") #
-input_mesh = mesh_rabbit
+# input_mesh = mesh_rabbit
 #poisson disk sampling is the best way 
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=500, init_factor=5) 
 #Here is where we would apply local and globab regestration again, and transform our merged point cloud
