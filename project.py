@@ -21,7 +21,7 @@ static create_from_depth_image(depth, intrinsic, extrinsic=(with default value),
 
 Likely want to do some preprocessing as well 
 '''
-
+'''
 # Reference:
 # https://github.com/IntelRealSense/librealsense/blob/master/wrappers/python/examples/python-tutorial-1-depth.py
 # https://github.com/IntelRealSense/librealsense/blob/master/wrappers/python/examples/align-depth2color.py
@@ -116,12 +116,12 @@ print("1")
 # https://www.open3d.org/docs/release/tutorial/pipelines/icp_registration.html
 #  we will likely need to appy ransac ourselves- this is more than enough work
 
-
+'''
 def prepare_dataset(source, target, voxel_size):
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
     return source, target, source_down, target_down, source_fpfh, target_fpfh
-
+'''
 
 # mesh_rabbit_info = o3d.data.BunnyMesh() #o3d.get_bunny_mesh()
 # #print(mesh_rabbit_info.path)
@@ -149,7 +149,7 @@ def prepare_dataset(source, target, voxel_size):
 # print("1.25")
 
 
-
+'''
 # Downsamples pointcloud source and target 
 def preprocess_point_cloud(pcd, voxel_size):
     pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -175,7 +175,7 @@ threshold = 0.02
 max_correspondence_distance_coarse = voxel_size * 15
 max_correspondence_distance_fine = voxel_size * 1.5
 
-
+'''
 def pairwise_registration(source, target):
     print("Apply point-to-plane ICP")
     icp_coarse = o3d.pipelines.registration.registration_icp(
@@ -257,28 +257,29 @@ o3d.visualization.draw_geometries([pcd_combined_down],
                                   up=[-0.0694, -0.9768, 0.2024])
 
 
+'''
+'''
+print("2")
+source = o3d.io.read_point_cloud(fileNames[0])
+for file in fileNames: # loop through frames in rotation order, or use an evaluation metric to compare two frames and make sure they have enough overlap
+    if(file != fileNames[0]):
+        voxel_size = 0.01  # means 1cm for this dataset
+        threshold = 0.02
+        # Loop through each frame
+        target = o3d.io.read_point_cloud(file) # set to base depth frame
 
-# print("2")
-# source = o3d.io.read_point_cloud(fileNames[0])
-# for file in fileNames: # loop through frames in rotation order, or use an evaluation metric to compare two frames and make sure they have enough overlap
-#     if(file != fileNames[0]):
-#         voxel_size = 0.01  # means 1cm for this dataset
-#         threshold = 0.02
-#         # Loop through each frame
-#         target = o3d.io.read_point_cloud(file) # set to base depth frame
+        # evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
+        # print(evaluation)
 
-#         # evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
-#         # print(evaluation)
-
-#         # Take data set and downsample point cloud to prepare for RANSAC
-#         source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
-#         # Obtain rough tansformation matrix from RANSAC
-#         result_ransac = execute_global_registration(source_down, target_down,source_fpfh, target_fpfh, voxel_size)
-#         # Obtain refined transformation matrix from ICP, using RANSAC matrix as initial guess
-#         reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
-#         source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
-#         print("merged one")
-
+        # Take data set and downsample point cloud to prepare for RANSAC
+        #source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
+        # Obtain rough tansformation matrix from RANSAC
+        result_ransac = execute_global_registration(source_down, target_down,source_fpfh, target_fpfh, voxel_size)
+        # Obtain refined transformation matrix from ICP, using RANSAC matrix as initial guess
+        reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
+        source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
+        print("merged one")
+'''
 print("3")
 
 #third part of project, do post processing on the point cloud as needed, turn it into a mesh probably, compare it to a mesh we read in? alighn it with that read in mesh?
@@ -288,8 +289,116 @@ print("3")
 #also need to do normal vector estimation, and there is the issue with direction in normal vec estimation, unsure if this applies here
 
 #assuming from previous step we have: transfomred merged point clouds
-
+pcd_combined_down = o3d.io.read_point_cloud("multiway_registration.pcd")
 merged_point_clouds = pcd_combined_down
+
+with o3d.utility.VerbosityContextManager(
+        o3d.utility.VerbosityLevel.Debug) as cm:
+    labels = np.array(
+        merged_point_clouds.cluster_dbscan(eps=0.1, min_points=10, print_progress=True))
+
+# Find the number of clusters
+max_label = labels.max()
+print(f"Point cloud has {max_label + 1} clusters")
+
+# Separate clusters into different point clouds
+cluster_point_clouds = []
+for cluster_idx in range(max_label + 1):
+    # Select points that belong to the current cluster
+    cluster_points = np.asarray(merged_point_clouds.points)[labels == cluster_idx]
+    cluster_colors = np.asarray(merged_point_clouds.colors)[labels == cluster_idx]
+
+    # Create a new point cloud for this cluster
+    cluster_pcd = o3d.geometry.PointCloud()
+    cluster_pcd.points = o3d.utility.Vector3dVector(cluster_points)
+    cluster_pcd.colors = o3d.utility.Vector3dVector(cluster_colors)
+
+    # Append the cluster point cloud to the list
+    cluster_point_clouds.append(cluster_pcd)
+
+merged_point_clouds = cluster_point_clouds[0]
+
+table_pcd = cluster_point_clouds[1]
+plane_model, inliers = table_pcd.segment_plane(distance_threshold=0.01,
+                                         ransac_n=3,
+                                         num_iterations=1000)
+[a, b, c, d] = plane_model
+
+
+
+# inlier_cloud = table_pcd.select_by_index(inliers)
+# inlier_cloud.paint_uniform_color([1.0, 0, 0])
+# outlier_cloud = table_pcd.select_by_index(inliers, invert=True)
+# o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud],
+#                                   zoom=0.8,
+#                                   front=[-0.4999, -0.1659, -0.8499],
+#                                   lookat=[2.1813, 2.0619, 2.0999],
+#                                   up=[0.1204, -0.9852, 0.1215])
+
+
+
+
+def plane_to_z_transform(A, B, C, D):
+    # Normalize the normal vector
+    normal = np.array([A, B, C])
+    norm = np.linalg.norm(normal)
+    normal_unit = normal / norm
+
+    # Translation vector to move the plane to the origin
+    translation = -(D / norm) * normal_unit
+
+    # Rotation to align the normal vector with the z-axis
+    z_axis = np.array([0, 0, 1])
+    v = np.cross(normal_unit, z_axis)  # Axis of rotation
+    s = np.linalg.norm(v)             # Magnitude of the rotation vector
+    c = np.dot(normal_unit, z_axis)   # Cosine of the angle
+    v_skew = np.array([
+        [0, -v[2], v[1]],
+        [v[2], 0, -v[0]],
+        [-v[1], v[0], 0]
+    ])  # Skew-symmetric matrix of v
+
+    if s == 0:  # Already aligned, no rotation needed
+        R = np.eye(3)
+    else:
+        R = np.eye(3) + v_skew + (v_skew @ v_skew) * ((1 - c) / s**2)
+
+    # Combine rotation and translation into a 4x4 transformation matrix
+    T = np.eye(4)
+    T[:3, :3] = R
+    T[:3, 3] = translation
+    return T
+
+# Example plane equation: 2x + 3y + 4z - 5 = 0
+
+T = plane_to_z_transform(a, b, c, d)
+print("Transformation Matrix:\n", T)
+
+# Apply the transformation to a point cloud
+
+table_pcd.transform(np.linalg.inv(T))
+pcd_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
+        size=0.6, origin=[0, 0, 0])
+o3d.visualization.draw_geometries([table_pcd,pcd_frame])
+
+
+
+# max_label = labels.max()
+# print(f"point cloud has {max_label + 1} clusters")
+# colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
+# colors[labels < 0] = 0
+# merged_point_clouds.colors = o3d.utility.Vector3dVector(colors[:, :3])
+# o3d.visualization.draw_geometries([merged_point_clouds],
+#                                   zoom=0.455,
+#                                   front=[-0.4999, -0.1659, -0.8499],
+#                                   lookat=[2.1813, 2.0619, 2.0999],
+#                                   up=[0.1204, -0.9852, 0.1215])
+
+
+
+
+
+# o3d.visualization.draw_geometries([merged_point_clouds,pcd_frame])
 
 # o3d.visualization.draw_geometries([source])
 
@@ -319,8 +428,17 @@ with o3d.utility.VerbosityContextManager(
 #density value can be visualized to show how many supporting points there are for each vertex
 reconstructed_mesh = Poisson_mesh
 reconstructed_mesh.compute_vertex_normals()
+
+
+vertex_normals = np.asarray(reconstructed_mesh.vertex_normals)
+flipped_vertex_normals = -vertex_normals  # Flip orientation
+reconstructed_mesh.vertex_normals = o3d.utility.Vector3dVector(flipped_vertex_normals)
+
+#reconstructed_mesh.orient_normals_consistent_tangent_plane()
+# reconstructed_mesh.compute_triangle_normals()
 reconstructed_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
-o3d.visualization.draw_geometries([reconstructed_mesh])
+# o3d.visualization.draw_geometries([reconstructed_mesh]) 
+o3d.io.write_triangle_mesh("reconstructed_mesh.stl",reconstructed_mesh)
 # o3d.visualization.draw_geometries([Poisson_mesh],
 #                                   zoom=0.664,
 #                                   front=[-0.4761, -0.4698, -0.7434],
@@ -332,10 +450,37 @@ o3d.visualization.draw_geometries([reconstructed_mesh])
 
 
 #read in mesh of intrest,
-# input_mesh = o3d.io.read_triangle_mesh("path to mesh, idk if it should be string") #
+input_mesh = o3d.io.read_triangle_mesh("STL_Files\Beam_as_built_cm.stl") #
 # input_mesh = mesh_rabbit
 #poisson disk sampling is the best way 
-input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=500, init_factor=5) 
+input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=6400, init_factor=5) 
+
+
+
+voxel_size = 0.02  # means 1cm for this dataset
+threshold = .85
+# Loop through each frame
+target = input_pcd # set to base depth frame
+source = merged_point_clouds
+# evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
+# print(evaluation)
+
+# Take data set and downsample point cloud to prepare for RANSAC
+source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
+# Obtain rough tansformation matrix from RANSAC
+result_ransac = execute_global_registration(source, target,source_fpfh, target_fpfh, voxel_size)
+# Obtain refined transformation matrix from ICP, using RANSAC matrix as initial guess
+reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
+# source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
+
+
+
+
+print(reg_p2p.transformation)
+source.transform(reg_p2p.transformation)
+
+merged_point_clouds = source
+
 #Here is where we would apply local and globab regestration again, and transform our merged point cloud
 # in our test example it is not needed.
 #computing distances between our merged and input point cloud
@@ -376,7 +521,8 @@ diff_pcd = difference_points #o3d.geometry.PointCloud()
 diff_pcd.colors = o3d.utility.Vector3dVector(difference_colors)
 
 # Visualize the difference point cloud
-o3d.visualization.draw_geometries([diff_pcd])
+input_mesh.compute_vertex_normals()
+o3d.visualization.draw_geometries([input_mesh,diff_pcd])
 print("6")
 #%% Layer View
 
