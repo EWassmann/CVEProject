@@ -159,6 +159,8 @@ def preprocess_point_cloud(pcd, voxel_size):
     pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(pcd_down,o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
     return pcd_down, pcd_fpfh
 print("1.5")
+
+'''
 # Runs RANSAC on downsampled pointclouds
 def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
     distance_threshold = voxel_size * 1.5
@@ -168,6 +170,18 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
         [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
          o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)],
          o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
+    return result
+'''
+
+def execute_fast_global_registration(source_down, target_down, source_fpfh,
+                                     target_fpfh, voxel_size):
+    distance_threshold = voxel_size * 0.5
+    print(":: Apply fast global registration with distance threshold %.3f" \
+            % distance_threshold)
+    result = o3d.pipelines.registration.registration_fgr_based_on_feature_matching(
+        source_down, target_down, source_fpfh, target_fpfh,
+        o3d.pipelines.registration.FastGlobalRegistrationOption(
+            maximum_correspondence_distance=distance_threshold))
     return result
 
 voxel_size = 0.03  # means 1mm for this dataset
@@ -468,7 +482,7 @@ source = merged_point_clouds
 # Take data set and downsample point cloud to prepare for RANSAC
 source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
 # Obtain rough tansformation matrix from RANSAC
-result_ransac = execute_global_registration(source, target,source_fpfh, target_fpfh, voxel_size)
+result_ransac = execute_fast_global_registration(source, target,source_fpfh, target_fpfh, voxel_size)
 # Obtain refined transformation matrix from ICP, using RANSAC matrix as initial guess
 reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
 # source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
