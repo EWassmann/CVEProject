@@ -390,9 +390,6 @@ reconstructed_mesh = Poisson_mesh
 reconstructed_mesh.compute_vertex_normals()
 
 
-vertex_normals = np.asarray(reconstructed_mesh.vertex_normals)
-# flipped_vertex_normals = -vertex_normals  # Flip orientation
-# reconstructed_mesh.vertex_normals = o3d.utility.Vector3dVector(flipped_vertex_normals)
 
 reconstructed_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
 densities = np.asarray(densities)
@@ -401,24 +398,19 @@ reconstructed_mesh.remove_vertices_by_mask(vertices_to_remove)
 reconstructed_mesh = reconstructed_mesh.filter_smooth_laplacian(number_of_iterations=10)
 reconstructed_mesh.compute_vertex_normals()
 o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh.stl",reconstructed_mesh)
-o3d.visualization.draw_geometries([reconstructed_mesh],
-                                  zoom=0.664,
-                                  front=[-0.4761, -0.4698, -0.7434],
-                                  lookat=[1.8900, 3.2596, 0.9284],
-                                  up=[0.2304, -0.8825, 0.4101],mesh_show_back_face=True)
-
+# o3d.visualization.draw_geometries([reconstructed_mesh],
+#                                   zoom=0.664,
+#                                   front=[-0.4761, -0.4698, -0.7434],
+#                                   lookat=[1.8900, 3.2596, 0.9284],
+#                                   up=[0.2304, -0.8825, 0.4101],mesh_show_back_face=True)
+o3d.visualization.draw_geometries([reconstructed_mesh],mesh_show_back_face=True)
 
 #read in mesh of intrest,
 input_mesh = o3d.io.read_triangle_mesh(saved_file_path+"STL_Files\Beam_as_built_cm.stl") 
 #poisson disk sampling is the best way 
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=6400, init_factor=5) 
 
-#input_pcd.transform(np.linalg.inv(T))
 
-
-#voxel_size = 0.1  # means 1cm for this dataset
-#threshold = .85
-# Loop through each frame
 target = input_pcd # set to base depth frame
 source = merged_point_clouds
 # evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
@@ -635,10 +627,6 @@ reconstructed_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
 
 # Visualize the mesh with mapped colors
 o3d.visualization.draw_geometries([reconstructed_mesh],
-                                  zoom=0.3412,
-                                  front=[0.4257, -0.2125, -0.8795],
-                                  lookat=[2.6172, 2.0475, 1.532],
-                                  up=[-0.0694, -0.9768, 0.2024],
                                   mesh_show_back_face=True)
 
 # save the mesh with mapped colors
