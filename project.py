@@ -396,16 +396,12 @@ vertex_normals = np.asarray(reconstructed_mesh.vertex_normals)
 
 reconstructed_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
 densities = np.asarray(densities)
-vertices_to_remove = densities < np.quantile(densities, 0.1)
+vertices_to_remove = densities < np.quantile(densities, 0.2)
 reconstructed_mesh.remove_vertices_by_mask(vertices_to_remove)
 reconstructed_mesh = reconstructed_mesh.filter_smooth_laplacian(number_of_iterations=10)
 reconstructed_mesh.compute_vertex_normals()
 o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh.stl",reconstructed_mesh)
-o3d.visualization.draw_geometries([reconstructed_mesh],
-                                  zoom=0.664,
-                                  front=[-0.4761, -0.4698, -0.7434],
-                                  lookat=[1.8900, 3.2596, 0.9284],
-                                  up=[0.2304, -0.8825, 0.4101],mesh_show_back_face=True)
+o3d.visualization.draw_geometries([reconstructed_mesh],mesh_show_back_face=True)
 
 
 #read in mesh of intrest,
@@ -633,10 +629,6 @@ reconstructed_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
 
 # Visualize the mesh with smooth color transitions
 o3d.visualization.draw_geometries([reconstructed_mesh],
-                                  zoom=0.3152,
-                                  front=[0.4257, 0.2125, 0.8795],
-                                  lookat=[2.2105, 2.0475, 1.532],
-                                  up=[0.0694, 0.9768, -0.2024],
                                   mesh_show_back_face=True)
 
 # Save the mesh with smooth color transitions
