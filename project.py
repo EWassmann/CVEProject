@@ -3,6 +3,10 @@ import numpy as np
 import pyrealsense2 as rs
 import open3d as o3d
 import matplotlib.pyplot as plt
+import tqdm
+import dask
+from dask import delayed, compute
+import os
 import time
 #import open3d_tutorial as o3dtut
 '''
@@ -104,10 +108,13 @@ Likely want to do some preprocessing as well
 # except Exception as e:
 #     print(e)
 #     pass
-
+'''
 #fileNames = ["saved_pct/masked_point_cloud0.pcd","saved_pct/masked_point_cloud1.pcd","saved_pct/masked_point_cloud2.pcd","saved_pct/masked_point_cloud3.pcd","saved_pct/masked_point_cloud4.pcd","saved_pct/masked_point_cloud5.pcd","saved_pct/masked_point_cloud6.pcd","saved_pct/masked_point_cloud7.pcd","saved_pct/masked_point_cloud8.pcd","saved_pct/masked_point_cloud9.pcd",]
-fileNames = ["masked_point_cloud0.pcd","masked_point_cloud1.pcd","masked_point_cloud2.pcd","masked_point_cloud3.pcd","masked_point_cloud4.pcd","masked_point_cloud5.pcd","masked_point_cloud6.pcd","masked_point_cloud7.pcd","masked_point_cloud8.pcd","masked_point_cloud9.pcd","masked_point_cloud10.pcd","masked_point_cloud11.pcd","masked_point_cloud12.pcd","masked_point_cloud13.pcd","masked_point_cloud14.pcd"]
-print("1")
+#fileNames = ["masked_point_cloud0.pcd","masked_point_cloud1.pcd","masked_point_cloud2.pcd","masked_point_cloud3.pcd","masked_point_cloud4.pcd","masked_point_cloud5.pcd","masked_point_cloud6.pcd","masked_point_cloud7.pcd","masked_point_cloud8.pcd","masked_point_cloud9.pcd","masked_point_cloud10.pcd","masked_point_cloud11.pcd","masked_point_cloud12.pcd","masked_point_cloud13.pcd","masked_point_cloud14.pcd"]
+'''fileNames = []
+for i in range(0,15):
+    fileNames.append("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\saved_pct\\masked_point_cloud"+str(i)+".pcd")
+print("1")'''
 
 # second part of project, find the transforms between the depth frames (maybe use icp) and if we are unable to mask the point clouds before we find the transforms, apply the masks to the depth images now and create smaller point clouds to apply the same transforms to
 #section output- a single point cloud representing the object.
@@ -116,7 +123,7 @@ print("1")
 # https://www.open3d.org/docs/release/tutorial/pipelines/icp_registration.html
 #  we will likely need to appy ransac ourselves- this is more than enough work
 
-'''
+
 def prepare_dataset(source, target, voxel_size):
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
@@ -160,18 +167,18 @@ def preprocess_point_cloud(pcd, voxel_size):
     return pcd_down, pcd_fpfh
 print("1.5")
 
-'''
+
 # Runs RANSAC on downsampled pointclouds
-def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
-    distance_threshold = voxel_size * 1.5
+def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size, iteration):
+    distance_threshold = voxel_size * 2.5
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
         source_down, target_down, source_fpfh, target_fpfh, True, distance_threshold,
-         o3d.pipelines.registration.TransformationEstimationPointToPoint(False), 3, 
-        [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+         o3d.pipelines.registration.TransformationEstimationPointToPoint(False), 4, 
+        [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.99),
          o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold)],
-         o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
+         o3d.pipelines.registration.RANSACConvergenceCriteria(iteration, 0.999))
     return result
-'''
+
 
 def execute_fast_global_registration(source_down, target_down, source_fpfh,
                                      target_fpfh, voxel_size):
@@ -189,7 +196,7 @@ threshold = 0.02
 max_correspondence_distance_coarse = voxel_size * 15
 max_correspondence_distance_fine = voxel_size * 1.5
 
-'''
+
 def pairwise_registration(source, target):
     print("Apply point-to-plane ICP")
     icp_coarse = o3d.pipelines.registration.registration_icp(
@@ -240,7 +247,7 @@ def full_registration(fileNames):
 
 
 
-
+'''
 pose_graph = full_registration(fileNames)
 
 option = o3d.pipelines.registration.GlobalOptimizationOption(
@@ -263,15 +270,16 @@ for point_id in range(len(fileNames)):
     pcd_combined += pcd
 #pcd_combined_down = pcd_combined
 pcd_combined_down = pcd_combined.voxel_down_sample(voxel_size=voxel_size)
-o3d.io.write_point_cloud("multiway_registration.pcd", pcd_combined_down)
+#o3d.io.write_point_cloud("multiway_registration.pcd", pcd_combined_down)
+o3d.io.write_point_cloud("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\multiway_registration.pcd", pcd_combined_down)
 o3d.visualization.draw_geometries([pcd_combined_down],
                                   zoom=0.3412,
                                   front=[0.4257, -0.2125, -0.8795],
                                   lookat=[2.6172, 2.0475, 1.532],
-                                  up=[-0.0694, -0.9768, 0.2024])
+                                  up=[-0.0694, -0.9768, 0.2024])'''
 
 
-'''
+
 '''
 print("2")
 source = o3d.io.read_point_cloud(fileNames[0])
@@ -303,8 +311,12 @@ print("3")
 #also need to do normal vector estimation, and there is the issue with direction in normal vec estimation, unsure if this applies here
 
 #assuming from previous step we have: transfomred merged point clouds
-pcd_combined_down = o3d.io.read_point_cloud("multiway_registration.pcd")
+pcd_combined_down = o3d.io.read_point_cloud("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\multiway_registration.pcd")
+#pcd_combined_down = o3d.io.read_point_cloud("multiway_registration.pcd")
 merged_point_clouds = pcd_combined_down
+
+#show the point cloud
+#o3d.visualization.draw_geometries([merged_point_clouds])
 
 with o3d.utility.VerbosityContextManager(
         o3d.utility.VerbosityLevel.Debug) as cm:
@@ -391,9 +403,10 @@ print("Transformation Matrix:\n", T)
 # Apply the transformation to a point cloud
 
 table_pcd.transform(np.linalg.inv(T))
+
 pcd_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
         size=0.6, origin=[0, 0, 0])
-o3d.visualization.draw_geometries([table_pcd,pcd_frame])
+#o3d.visualization.draw_geometries([table_pcd,pcd_frame])
 
 
 
@@ -464,30 +477,123 @@ o3d.io.write_triangle_mesh("reconstructed_mesh.stl",reconstructed_mesh)
 
 
 #read in mesh of intrest,
-input_mesh = o3d.io.read_triangle_mesh("STL_Files\Beam_as_built_cm.stl") #
+#input_mesh = o3d.io.read_triangle_mesh("STL_Files\Beam_as_built_cm.stl") 
+input_mesh = o3d.io.read_triangle_mesh("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\STL_Files\\Beam_as_built_cm.stl")
 # input_mesh = mesh_rabbit
 #poisson disk sampling is the best way 
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=6400, init_factor=5) 
 
+#input_pcd.transform(np.linalg.inv(T))
 
 
-voxel_size = 0.02  # means 1cm for this dataset
-threshold = .85
+#voxel_size = 0.1  # means 1cm for this dataset
+#threshold = .85
 # Loop through each frame
 target = input_pcd # set to base depth frame
 source = merged_point_clouds
 # evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
 # print(evaluation)
 
+# Function to process a single parameter combination
+'''@delayed
+def process_combination(voxel_size, voxel_size_down, threshold, max_it, max_it_ransac, rmse, input_pcd, merged_point_clouds):
+    # Adjust parameter values
+    voxel_size_down *= 0.2
+    threshold *= 0.2
+    max_it = max_it * 100000
+    max_it_ransac = max_it_ransac * 100000
+    rmse = pow(1, rmse - 10)
+    source = input_pcd
+    target = merged_point_clouds
+
+    # Prepare dataset and execute RANSAC
+    source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size_down)
+    result_ransac = execute_global_registration(source, target, source_fpfh, target_fpfh, voxel_size, max_it_ransac)
+
+    # Perform ICP for refinement
+    reg_p2p = o3d.pipelines.registration.registration_icp(
+        source, target, threshold,
+        result_ransac.transformation,
+        o3d.pipelines.registration.TransformationEstimationPointToPlane(),
+        criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=max_it, relative_rmse=rmse)
+    )
+
+    # Transform source and compute distances
+    source.transform(reg_p2p.transformation)
+    merged_point_clouds = source
+
+    dists = merged_point_clouds.compute_point_cloud_distance(target)
+    avg_local = np.mean(dists)
+    max_local = np.max(dists)
+
+    return avg_local, max_local, dists
+
+# Main function
+if __name__ == "__main__":
+    avg = []
+    max = []
+
+    # Placeholder point clouds (replace with actual data)
+    #source = merged_point_clouds  # Example source point cloud
+    #target = input_pcd  # Example target point cloud
+    #input_pcd = o3d.geometry.PointCloud()  # Example input point cloud
+
+    # Generate all parameter combinations
+    parameter_combinations = [
+        (voxel_size * 0.2, voxel_size_down, threshold, max_it, max_it_ransac, rmse)
+        for voxel_size in range(1, 5)
+        for voxel_size_down in range(1, 5)
+        for threshold in range(1, 5)
+        for max_it in range(1, 5)
+        for max_it_ransac in range(1, 5)
+        for rmse in range(1, 5)
+    ]
+
+    # Create Dask tasks for all parameter combinations
+    tasks = [
+        process_combination(
+            voxel_size, voxel_size_down, threshold, max_it, max_it_ransac, rmse,
+            input_pcd, merged_point_clouds
+        )
+        for voxel_size, voxel_size_down, threshold, max_it, max_it_ransac, rmse in tqdm.tqdm(parameter_combinations)
+    ]
+
+    # Execute all tasks in parallel
+    results = compute(*tasks)
+
+    # Extract results
+    for avg_local, max_local, dists in results:
+        avg.append(avg_local)
+        max.append(max_local)
+
+    print("Average distances:", avg)
+    print("Maximum distances:", max)'''
+
+voxel_size = 0.4
+voxel_size_down = 0.2
+threshold = 0.2
+max_it_icp = 1000000
+max_it_ransac = 1000000
+rmse = 1.0e-8
+
 # Take data set and downsample point cloud to prepare for RANSAC
-source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
+source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size_down)
 # Obtain rough tansformation matrix from RANSAC
-result_ransac = execute_fast_global_registration(source, target,source_fpfh, target_fpfh, voxel_size)
+result_ransac = execute_global_registration(source, target,source_fpfh, target_fpfh, voxel_size, max_it_ransac)
+
+'''source_points = np.asarray(source.points)
+source2 = o3d.geometry.PointCloud()
+source2.points = o3d.utility.Vector3dVector(source_points)
+
+source2 = source2.transform(result_ransac.transformation)
+o3d.visualization.draw_geometries([source2, target])'''
+
 # Obtain refined transformation matrix from ICP, using RANSAC matrix as initial guess
-reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, result_ransac.transformation,o3d.pipelines.registration.TransformationEstimationPointToPoint())
+reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, 
+                                                    result_ransac.transformation,
+                                                    o3d.pipelines.registration.TransformationEstimationPointToPlane(),
+                                                    criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=max_it_icp,relative_rmse=rmse))
 # source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
-
-
 
 
 print(reg_p2p.transformation)
@@ -499,10 +605,6 @@ merged_point_clouds = source
 # in our test example it is not needed.
 #computing distances between our merged and input point cloud
 dists = merged_point_clouds.compute_point_cloud_distance(input_pcd) #Distance between the point cloud and closest point on the input
-
-
-
-
 
 #now how do we alighn the meshes? best way may be to take the input mesh and then get a point cloud from is and use
 #global regestration on the two of them.
@@ -549,7 +651,7 @@ max_z = max(points1[:, 2].max(), points2[:, 2].max())
 target_z = max_z / 2
 
 # Set a tolerance range for slicing 
-tolerance = 0.01
+tolerance = 0.005
 section_points1 = points1[(points1[:, 2] > target_z - tolerance) & (points1[:, 2] < target_z + tolerance)]
 section_points2 = points2[(points2[:, 2] > target_z - tolerance) & (points2[:, 2] < target_z + tolerance)]
 
@@ -571,16 +673,17 @@ plt.grid(True)
 
 # Show the plot
 plt.show()
-
 #%% Comparison Results
 
-# Average Deviation
-average = np.mean(dists)
-print("Average: ",average)
-
-# Max Deviation
-print("Maximum Deviation: ",max_distance)
-
+# save the average and maximum distances to a text file
+'''with open("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\comparison_results.txt", "w") as f:
+    f.write("Average Distances\n")
+    for avg_local in avg:
+        f.write(f"{avg_local:.3f}\n")
+    f.write("\nMaximum Distances\n")
+    for max_local in max:
+        f.write(f"{max_local:.3f}\n")
+'''
 
 
 
