@@ -396,7 +396,7 @@ vertex_normals = np.asarray(reconstructed_mesh.vertex_normals)
 
 reconstructed_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
 densities = np.asarray(densities)
-vertices_to_remove = densities < np.quantile(densities, 0.1)
+vertices_to_remove = densities < np.quantile(densities, 0.2)
 reconstructed_mesh.remove_vertices_by_mask(vertices_to_remove)
 reconstructed_mesh = reconstructed_mesh.filter_smooth_laplacian(number_of_iterations=10)
 reconstructed_mesh.compute_vertex_normals()
