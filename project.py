@@ -3,12 +3,16 @@ import numpy as np
 import pyrealsense2 as rs
 import open3d as o3d
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+from scipy.spatial import cKDTree
 import tqdm
 import dask
 from dask import delayed, compute
+import trimesh
 import os
 import time
 #import open3d_tutorial as o3dtut
+
 '''
 First part of the project
 1. Start video stream to realsense camera
@@ -396,7 +400,7 @@ vertices_to_remove = densities < np.quantile(densities, 0.1)
 reconstructed_mesh.remove_vertices_by_mask(vertices_to_remove)
 reconstructed_mesh = reconstructed_mesh.filter_smooth_laplacian(number_of_iterations=10)
 reconstructed_mesh.compute_vertex_normals()
-o3d.io.write_triangle_mesh("reconstructed_mesh.stl",reconstructed_mesh)
+o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh.stl",reconstructed_mesh)
 o3d.visualization.draw_geometries([reconstructed_mesh],
                                   zoom=0.664,
                                   front=[-0.4761, -0.4698, -0.7434],
@@ -405,7 +409,7 @@ o3d.visualization.draw_geometries([reconstructed_mesh],
 
 
 #read in mesh of intrest,
-input_mesh = o3d.io.read_triangle_mesh("STL_Files\Beam_as_built_cm.stl") 
+input_mesh = o3d.io.read_triangle_mesh(saved_file_path+"STL_Files\Beam_as_built_cm.stl") 
 #poisson disk sampling is the best way 
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=6400, init_factor=5) 
 
@@ -496,11 +500,11 @@ if __name__ == "__main__":
     print("Maximum distances:", max)'''
 
 voxel_size = 0.4
-voxel_size_down = 0.2
-threshold = 0.2
+voxel_size_down = 0.01
+threshold = 10
 max_it_icp = 1000000
 max_it_ransac = 1000000
-rmse = 1.0e-8
+rmse = 1.0e-5
 
 # Take data set and downsample point cloud to prepare for RANSAC
 source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size_down)
@@ -511,7 +515,7 @@ result_ransac = execute_global_registration(source, target,source_fpfh, target_f
 reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold, 
                                                     result_ransac.transformation,
                                                     o3d.pipelines.registration.TransformationEstimationPointToPlane(),
-                                                    criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=max_it_icp,relative_rmse=rmse))
+                                                    criteria=o3d.pipelines.registration.ICPConvergenceCriteria(relative_fitness = 1e-3, max_iteration=max_it_icp,relative_rmse=rmse))
 # source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
 
 
@@ -600,4 +604,43 @@ plt.show()
 '''
 
 
+#%% Visualize merged mesh with color map
+
+
+# Normalize distances
+dists = np.asarray(dists)
+dists_normalized = dists / dists.max()  # Normalize to [0, 1]
+
+# Shrink the scale closer to the middle
+dists_shrunk = dists_normalized**0.4  # Adjust the exponent for desired effect (e.g., 0.5 for square root)
+
+# Map distances to RGB colors
+colormap = plt.get_cmap("coolwarm_r")
+difference_colors = colormap(dists_shrunk)[:, :3]
+
+# Create a KD-Tree for the original point cloud points
+mesh_vertices = np.asarray(reconstructed_mesh.vertices)
+point_cloud_points = np.asarray(merged_point_clouds.points)
+kdtree = cKDTree(point_cloud_points)
+
+# Find the nearest neighbors of the mesh vertices in the point cloud
+_, indices = kdtree.query(mesh_vertices)
+
+# Assign the colors from the nearest points directly to the mesh vertices
+vertex_colors = difference_colors[indices]
+
+# Apply the colors to the mesh
+reconstructed_mesh.compute_vertex_normals()
+reconstructed_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
+
+# Visualize the mesh with mapped colors
+o3d.visualization.draw_geometries([reconstructed_mesh],
+                                  zoom=0.3412,
+                                  front=[0.4257, -0.2125, -0.8795],
+                                  lookat=[2.6172, 2.0475, 1.532],
+                                  up=[-0.0694, -0.9768, 0.2024],
+                                  mesh_show_back_face=True)
+
+# save the mesh with mapped colors
+o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh_with_colors.ply", reconstructed_mesh)
 
