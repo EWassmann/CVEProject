@@ -313,8 +313,8 @@ print("3")
 #also need to do normal vector estimation, and there is the issue with direction in normal vec estimation, unsure if this applies here
 
 #assuming from previous step we have: transfomred merged point clouds
-pcd_combined_down = o3d.io.read_point_cloud("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\multiway_registration.pcd")
-#pcd_combined_down = o3d.io.read_point_cloud("multiway_registration.pcd")
+#pcd_combined_down = o3d.io.read_point_cloud("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\multiway_registration.pcd")
+pcd_combined_down = o3d.io.read_point_cloud("multiway_registration.pcd")
 merged_point_clouds = pcd_combined_down
 
 #show the point cloud
@@ -479,8 +479,8 @@ o3d.io.write_triangle_mesh("reconstructed_mesh.stl",reconstructed_mesh)
 
 
 #read in mesh of intrest,
-#input_mesh = o3d.io.read_triangle_mesh("STL_Files\Beam_as_built_cm.stl") 
-input_mesh = o3d.io.read_triangle_mesh("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\STL_Files\\Beam_as_built_cm.stl")
+input_mesh = o3d.io.read_triangle_mesh("STL_Files\Beam_as_built_cm.stl") 
+#input_mesh = o3d.io.read_triangle_mesh("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\STL_Files\\Beam_as_built_cm.stl")
 # input_mesh = mesh_rabbit
 #poisson disk sampling is the best way 
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=6400, init_factor=5) 
