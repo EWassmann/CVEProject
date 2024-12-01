@@ -390,27 +390,35 @@ reconstructed_mesh = Poisson_mesh
 reconstructed_mesh.compute_vertex_normals()
 
 
+vertex_normals = np.asarray(reconstructed_mesh.vertex_normals)
+# flipped_vertex_normals = -vertex_normals  # Flip orientation
+# reconstructed_mesh.vertex_normals = o3d.utility.Vector3dVector(flipped_vertex_normals)
 
 reconstructed_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
 densities = np.asarray(densities)
-vertices_to_remove = densities < np.quantile(densities, 0.2)
+vertices_to_remove = densities < np.quantile(densities, 0.1)
 reconstructed_mesh.remove_vertices_by_mask(vertices_to_remove)
 reconstructed_mesh = reconstructed_mesh.filter_smooth_laplacian(number_of_iterations=10)
 reconstructed_mesh.compute_vertex_normals()
 o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh.stl",reconstructed_mesh)
-# o3d.visualization.draw_geometries([reconstructed_mesh],
-#                                   zoom=0.664,
-#                                   front=[-0.4761, -0.4698, -0.7434],
-#                                   lookat=[1.8900, 3.2596, 0.9284],
-#                                   up=[0.2304, -0.8825, 0.4101],mesh_show_back_face=True)
-o3d.visualization.draw_geometries([reconstructed_mesh],mesh_show_back_face=True)
+o3d.visualization.draw_geometries([reconstructed_mesh],
+                                  zoom=0.664,
+                                  front=[-0.4761, -0.4698, -0.7434],
+                                  lookat=[1.8900, 3.2596, 0.9284],
+                                  up=[0.2304, -0.8825, 0.4101],mesh_show_back_face=True)
+
 
 #read in mesh of intrest,
 input_mesh = o3d.io.read_triangle_mesh(saved_file_path+"STL_Files\Beam_as_built_cm.stl") 
 #poisson disk sampling is the best way 
 input_pcd = input_mesh.sample_points_poisson_disk(number_of_points=6400, init_factor=5) 
 
+#input_pcd.transform(np.linalg.inv(T))
 
+
+#voxel_size = 0.1  # means 1cm for this dataset
+#threshold = .85
+# Loop through each frame
 target = input_pcd # set to base depth frame
 source = merged_point_clouds
 # evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
@@ -599,36 +607,45 @@ plt.show()
 #%% Visualize merged mesh with color map
 
 
+#%% Visualize merged mesh with color map
+
+# Compute distances between vertices of reconstructed_mesh and input_mesh
+reconstructed_vertices = np.asarray(reconstructed_mesh.vertices)
+input_vertices = np.asarray(input_mesh.vertices)
+
+# Create KDTree for efficient nearest neighbor search
+kdtree_input = cKDTree(input_vertices)
+
+# Compute distances from each vertex in reconstructed_mesh to the nearest vertex in input_mesh
+distances, _ = kdtree_input.query(reconstructed_vertices)
+
 # Normalize distances
-dists = np.asarray(dists)
-dists_normalized = dists / dists.max()  # Normalize to [0, 1]
+max_distance = distances.max()
+normalized_distances = distances / max_distance  # Normalize to [0, 1]
 
-# Shrink the scale closer to the middle
-dists_shrunk = dists_normalized**0.4  # Adjust the exponent for desired effect (e.g., 0.5 for square root)
-
-# Map distances to RGB colors
+# Map distances to colors using a colormap
 colormap = plt.get_cmap("coolwarm_r")
-difference_colors = colormap(dists_shrunk)[:, :3]
+vertex_colors = colormap(normalized_distances)[:, :3]  # Convert to RGB colors
 
-# Create a KD-Tree for the original point cloud points
-mesh_vertices = np.asarray(reconstructed_mesh.vertices)
-point_cloud_points = np.asarray(merged_point_clouds.points)
-kdtree = cKDTree(point_cloud_points)
-
-# Find the nearest neighbors of the mesh vertices in the point cloud
-_, indices = kdtree.query(mesh_vertices)
-
-# Assign the colors from the nearest points directly to the mesh vertices
-vertex_colors = difference_colors[indices]
-
-# Apply the colors to the mesh
+# Apply the smooth color map to the mesh
 reconstructed_mesh.compute_vertex_normals()
 reconstructed_mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
 
-# Visualize the mesh with mapped colors
+# Visualize the mesh with smooth color transitions
 o3d.visualization.draw_geometries([reconstructed_mesh],
+                                  zoom=0.3152,
+                                  front=[0.4257, 0.2125, 0.8795],
+                                  lookat=[2.2105, 2.0475, 1.532],
+                                  up=[0.0694, 0.9768, -0.2024],
                                   mesh_show_back_face=True)
 
-# save the mesh with mapped colors
-o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh_with_colors.ply", reconstructed_mesh)
+# Save the mesh with smooth color transitions
+o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh_smooth_colors.ply", reconstructed_mesh)
 
+# Add a smooth colorbar visualization
+plt.figure(figsize=(8, 1))
+norm = Normalize(vmin=0, vmax=max_distance)
+cb = plt.colorbar(plt.cm.ScalarMappable(cmap="coolwarm_r", norm=norm), orientation="horizontal")
+cb.set_label("Distance")
+plt.title("Smooth Color Scale for Mesh-to-Mesh Distances")
+plt.show()
