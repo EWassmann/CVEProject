@@ -318,59 +318,7 @@ for cluster_idx in range(max_label + 1):
 
 merged_point_clouds = cluster_point_clouds[0]
 
-'''
-table_pcd = cluster_point_clouds[1]
 
-plane_model, inliers = table_pcd.segment_plane(distance_threshold=0.01,
-                                         ransac_n=3,
-                                         num_iterations=1000)
-[a, b, c, d] = plane_model
-
-
-
-def plane_to_z_transform(A, B, C, D):
-    # Normalize the normal vector
-    normal = np.array([A, B, C])
-    norm = np.linalg.norm(normal)
-    normal_unit = normal / norm
-
-    # Translation vector to move the plane to the origin
-    translation = -(D / norm) * normal_unit
-
-    # Rotation to align the normal vector with the z-axis
-    z_axis = np.array([0, 0, 1])
-    v = np.cross(normal_unit, z_axis)  # Axis of rotation
-    s = np.linalg.norm(v)             # Magnitude of the rotation vector
-    c = np.dot(normal_unit, z_axis)   # Cosine of the angle
-    v_skew = np.array([
-        [0, -v[2], v[1]],
-        [v[2], 0, -v[0]],
-        [-v[1], v[0], 0]
-    ])  # Skew-symmetric matrix of v
-
-    if s == 0:  # Already aligned, no rotation needed
-        R = np.eye(3)
-    else:
-        R = np.eye(3) + v_skew + (v_skew @ v_skew) * ((1 - c) / s**2)
-
-    # Combine rotation and translation into a 4x4 transformation matrix
-    T = np.eye(4)
-    T[:3, :3] = R
-    T[:3, 3] = translation
-    return T
-
-# Example plane equation: 2x + 3y + 4z - 5 = 0
-
-T = plane_to_z_transform(a, b, c, d)
-print("Transformation Matrix:\n", T)
-
-# Apply the transformation to a point cloud
-
-table_pcd.transform(np.linalg.inv(T))
-
-pcd_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
-        size=0.6, origin=[0, 0, 0])
-'''
 
 
 
@@ -606,6 +554,7 @@ plt.show()
 #%% Visualize merged mesh with color map
 
 # Compute distances between vertices of reconstructed_mesh and input_mesh
+reconstructed_mesh.transform(reg_p2p.transformation)
 reconstructed_vertices = np.asarray(reconstructed_mesh.vertices)
 input_vertices = np.asarray(input_mesh.vertices)
 
@@ -620,7 +569,7 @@ max_distance = distances.max()
 normalized_distances = distances / max_distance  # Normalize to [0, 1]
 
 # Map distances to colors using a colormap
-colormap = plt.get_cmap("coolwarm_r")
+colormap = plt.get_cmap("coolwarm")
 vertex_colors = colormap(normalized_distances)[:, :3]  # Convert to RGB colors
 
 # Apply the smooth color map to the mesh
@@ -637,7 +586,7 @@ o3d.io.write_triangle_mesh(saved_file_path+"reconstructed_mesh_smooth_colors.ply
 # Add a smooth colorbar visualization
 plt.figure(figsize=(8, 1))
 norm = Normalize(vmin=0, vmax=max_distance)
-cb = plt.colorbar(plt.cm.ScalarMappable(cmap="coolwarm_r", norm=norm), orientation="horizontal")
+cb = plt.colorbar(plt.cm.ScalarMappable(cmap="coolwarm", norm=norm), orientation="horizontal")
 cb.set_label("Distance")
 plt.title("Smooth Color Scale for Mesh-to-Mesh Distances")
 plt.show()
