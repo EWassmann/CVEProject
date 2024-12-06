@@ -369,7 +369,8 @@ source = merged_point_clouds
 # print(evaluation)
 
 # Function to process a single parameter combination
-'''@delayed
+'''
+@delayed
 def process_combination(voxel_size, voxel_size_down, threshold, max_it, max_it_ransac, rmse, input_pcd, merged_point_clouds):
     # Adjust parameter values
     voxel_size_down *= 0.2
@@ -443,6 +444,7 @@ if __name__ == "__main__":
     print("Average distances:", avg)
     print("Maximum distances:", max)'''
 
+# Parameters for RANSAC and ICP
 voxel_size = 0.4
 voxel_size_down = 0.01
 threshold = 10
@@ -462,21 +464,19 @@ reg_p2p = o3d.pipelines.registration.registration_icp(source, target, threshold,
                                                     criteria=o3d.pipelines.registration.ICPConvergenceCriteria(relative_fitness = 1e-3, max_iteration=max_it_icp,relative_rmse=rmse))
 # source = source + target.transform(np.linalg.inv(reg_p2p.transformation))
 
-
+# Transform source and compute distances
 print(reg_p2p.transformation)
 source.transform(reg_p2p.transformation)
 
 merged_point_clouds = source
 
-
 #computing distances between our merged and input point cloud
 dists = merged_point_clouds.compute_point_cloud_distance(input_pcd) #Distance between the point cloud and closest point on the input
 
 
-
 #fourth part of the project, visualize the two meshes, diffrences between them, make good graphics to show off what we did before
 
-#%% Colored Difference 3D Point Cloud
+## Colored Difference 3D Point Cloud
 
 # Set a threshold for min difference
 dists = np.asarray(dists)
@@ -502,7 +502,8 @@ diff_pcd.colors = o3d.utility.Vector3dVector(difference_colors)
 input_mesh.compute_vertex_normals()
 o3d.visualization.draw_geometries([input_mesh,diff_pcd])
 print("6")
-#%% Layer View
+
+## Layer View
 
 # Convert point clouds to numpy arrays
 points1 = np.asarray(merged_point_clouds.points)
@@ -535,10 +536,11 @@ plt.grid(True)
 
 # Show the plot
 plt.show()
-#%% Comparison Results
 
-# save the average and maximum distances to a text file
-'''with open("D:\\Courses\\CMU-ComputerVisionForEng\\00 PROJ\\comparison_results.txt", "w") as f:
+## Comparison Results
+
+# save the average and maximum distances to a text file for parameter comparison
+'''with open("comparison_results.txt", "w") as f:
     f.write("Average Distances\n")
     for avg_local in avg:
         f.write(f"{avg_local:.3f}\n")
@@ -546,10 +548,6 @@ plt.show()
     for max_local in max:
         f.write(f"{max_local:.3f}\n")
 '''
-
-
-#%% Visualize merged mesh with color map
-
 
 #%% Visualize merged mesh with color map
 
